@@ -1,0 +1,29 @@
+spring:
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      default-filters:
+        - PreserveHostHeader
+      routes:
+        - id: wms-route
+          uri: lb://wms-application
+          predicates:
+            # 1. Мы ловим запросы, которые начинаются с имени сервиса (как в твоем URL)
+            - Path=/wms-application/**
+          filters:
+            # 2. ВАЖНО: Мы удаляем 1 сегмент пути (/wms-application) перед отправкой
+            - StripPrefix=1
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+jwt:
+  cookie-token-key: t2Gi41rBWW7opd8ZidjVxgnjHPGVpaXyABdsnTxsOjo=
+
+token:
+  signing:
+    lifetime: 24h

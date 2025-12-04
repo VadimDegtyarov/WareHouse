@@ -1,0 +1,28 @@
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5433/Warehouse
+    username: postgres
+    password: 12345
+  jpa:
+    generate-ddl: false
+    hibernate:
+      ddl-auto: update
+  security:
+    user:
+          name: user
+          password: 12345
+
+jwt:
+  cookie-token-key: t2Gi41rBWW7opd8ZidjVxgnjHPGVpaXyABdsnTxsOjo=
+token:
+  signing:
+    lifetime: 24h
+
+logging:
+  level:
+    org.springframework.security: trace
