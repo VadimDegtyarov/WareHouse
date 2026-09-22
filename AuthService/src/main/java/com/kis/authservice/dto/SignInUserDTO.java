@@ -4,15 +4,23 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+
 
 @Data
-
+@NoArgsConstructor
+@AllArgsConstructor
 public class SignInUserDTO {
 
-    @Pattern(regexp = ".+@.+\\..+|\\+\\d{6,15}", message = "Логин должен быть адресом электронной почты или номером телефона")
-    @NotBlank(message = "Логин не должен быть пустым")
+    @NotBlank(message = "Логин обязателен")
+    @Pattern(
+        regexp = "^(.+@.+\\..+|\\+?[0-9]{10,15})$", 
+        message = "Логин должен быть email адресом или номером телефона"
+    )
     private String login;
-    @Size(min = 8, max = 255, message = "Слишном короткий пароль!")
+    
+    @NotBlank(message = "Пароль обязателен")
+    @Size(min = 8, max = 255, message = "Пароль должен содержать минимум 8 символов")
     private String password;
-
 }

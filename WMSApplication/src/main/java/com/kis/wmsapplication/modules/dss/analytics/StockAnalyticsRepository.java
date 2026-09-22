@@ -7,7 +7,6 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.UUID;
 
 @Repository
 @RequiredArgsConstructor
@@ -37,16 +36,29 @@ public class StockAnalyticsRepository {
         return jdbcTemplate.query(sql, (rs, rowNum) -> {
             BigDecimal available = rs.getBigDecimal("available_stock");
             BigDecimal reorderPoint = rs.getBigDecimal("reorder_point");
+            BigDecimal eoq = rs.getBigDecimal("eoq");
+            BigDecimal maxStock = rs.getBigDecimal("max_stock");
+            
+            // Обработка null значений
+            if (available == null) available = BigDecimal.ZERO;
+            if (reorderPoint == null) reorderPoint = BigDecimal.ZERO;
+            if (eoq == null) eoq = BigDecimal.ZERO;
+            if (maxStock == null) maxStock = BigDecimal.ZERO;
+            
+            BigDecimal quantityToOrder = reorderPoint.subtract(available);
+            if (quantityToOrder.compareTo(BigDecimal.ZERO) < 0) {
+                quantityToOrder = BigDecimal.ZERO;
+            }
 
             return new ReorderCandidateDto(
-                    UUID.fromString(rs.getString("product_id")),
+                    rs.getLong("product_id"),
                     rs.getString("sku"),
-                    UUID.fromString(rs.getString("supplier_id")),
+                    rs.getLong("supplier_id"),
                     available,
                     reorderPoint,
-                    rs.getBigDecimal("eoq"),
-                    rs.getBigDecimal("max_stock"),
-                    reorderPoint.subtract(available)
+                    eoq,
+                    maxStock,
+                    quantityToOrder
             );
         });
     }

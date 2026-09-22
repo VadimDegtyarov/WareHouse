@@ -7,6 +7,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -31,7 +33,8 @@ public class OutgoingOrder {
     private Customer customer;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM) // PostgreSQL enum sales_status
+    @Column(name = "status", nullable = false, columnDefinition = "sales_status")
     private SalesStatus status = SalesStatus.NEW;
 
     @Column(name = "created_at")
@@ -47,6 +50,9 @@ public class OutgoingOrder {
     private List<OutgoingOrderItem> items = new ArrayList<>();
 
     public void addItem(OutgoingOrderItem item) {
+        if(items==null){
+            items = new ArrayList<>();
+        }
         items.add(item);
         item.setOrder(this);
     }

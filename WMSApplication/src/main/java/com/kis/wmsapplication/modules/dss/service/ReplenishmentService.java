@@ -36,7 +36,7 @@ public class ReplenishmentService {
             return;
         }
 
-        Map<UUID, List<ReorderCandidateDto>> bySupplier = candidates.stream()
+        Map<Long, List<ReorderCandidateDto>> bySupplier = candidates.stream()
                 .collect(Collectors.groupingBy(ReorderCandidateDto::supplierId));
 
         bySupplier.forEach(this::createOrderForSupplier);
@@ -44,7 +44,7 @@ public class ReplenishmentService {
         log.info("DSS: Анализ завершен. Создано заказов для {} поставщиков.", bySupplier.size());
     }
 
-    private void createOrderForSupplier(UUID supplierId, List<ReorderCandidateDto> items) {
+    private void createOrderForSupplier(Long supplierId, List<ReorderCandidateDto> items) {
         List<CreateOrderRequest.OrderItemDto> orderItems = new ArrayList<>();
 
         for (ReorderCandidateDto item : items) {
@@ -64,7 +64,7 @@ public class ReplenishmentService {
 
         if (!orderItems.isEmpty()) {
             CreateOrderRequest request = new CreateOrderRequest(supplierId, orderItems);
-            UUID orderId = procurementService.createOrder(request);
+            Long orderId = procurementService.createOrder(request);
             log.info("DSS: Создан черновик заказа {} для поставщика {}", orderId, supplierId);
         }
     }

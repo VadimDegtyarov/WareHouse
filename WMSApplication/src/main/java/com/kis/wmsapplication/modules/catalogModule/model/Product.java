@@ -7,8 +7,8 @@ import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Set;
-import java.util.UUID;
 
 @Entity
 @Table(name = "product")
@@ -19,8 +19,8 @@ import java.util.UUID;
 public class Product {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @Column(name = "sku", nullable = false, unique = true)
     private String sku;
@@ -31,7 +31,7 @@ public class Product {
     @Column(name = "description")
     private String description;
 
-    @Column(name = "price", nullable = false)
+    @Column(name = "unit_price", nullable = false)
     private BigDecimal price;
 
 
@@ -62,5 +62,15 @@ public class Product {
 
     // В будущем тут нужна связь с Supplier, пока ID
     @Column(name = "supplier_id")
-    private UUID supplierId;
+    private Long supplierId;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null) {
+            createdAt = Instant.now();
+        }
+    }
 }

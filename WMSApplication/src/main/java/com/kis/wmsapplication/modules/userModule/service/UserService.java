@@ -1,5 +1,6 @@
 package com.kis.wmsapplication.modules.userModule.service;
 
+import com.kis.wmsapplication.modules.userModule.dto.AdminUserDto;
 import com.kis.wmsapplication.modules.userModule.dto.UserDto;
 import com.kis.wmsapplication.modules.userModule.model.Role;
 import com.kis.wmsapplication.modules.userModule.repository.RoleRepository;
@@ -30,9 +31,7 @@ import com.kis.wmsapplication.modules.userModule.repository.UserRepository;
 import java.io.InputStream;
 import java.net.URLConnection;
 import java.time.Instant;
-import java.util.Collection;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 
 @RequiredArgsConstructor
@@ -75,56 +74,181 @@ public class UserService {
         return userRepository.findAll(spec, pageable);
     }
 
-    @Transactional
-    public void removeRole(UUID userId, String roleName) {
-        User user = getUserById(userId);
-        user.getUserAuthInfo().getRoles().removeIf(r -> r.getRole().equals(roleName));
-        userRepository.save(user);
+
+    private String normalizeRoleName(String roleName) {
+        if (roleName == null) {
+            return "";
+        }
+        String trimmed = roleName.trim().toUpperCase();
+        return trimmed.startsWith("ROLE_") ? trimmed : "ROLE_" + trimmed;
     }
 
+
+    private long countAdmins() {
+        return userAuthInfoRepository.findAll().stream()
+                .filter(uai -> uai.getRoles() != null && uai.getRoles().stream()
+                        .anyMatch(r -> "ROLE_ADMIN".equalsIgnoreCase(r.getRole())))
+                .count();
+    }
+
+    private boolean isUserAdmin(User user) {
+        return user.getUserAuthInfo() != null
+                && user.getUserAuthInfo().getRoles() != null
+                && user.getUserAuthInfo().getRoles().stream()
+                        .anyMatch(r -> "ROLE_ADMIN".equalsIgnoreCase(r.getRole()));
+    }
+
+
     @Transactional
-    public void deleteUserById(UUID id) {
+    public void removeRole(UUID userId, String roleName, UUID currentUserId) {
+        String normalized = normalizeRoleName(roleName);
+        User user = getUserById(userId);
+
+        if ("ROLE_ADMIN".equals(normalized)) {
+            if (currentUserId != null && currentUserId.equals(userId)) {
+                throw new IllegalStateException(
+                        "Нельзя снять роль ADMIN с самого себя. Попросите другого администратора.");
+            }
+            if (isUserAdmin(user) && countAdmins() <= 1) {
+                throw new IllegalStateException(
+                        "Нельзя снять роль ADMIN с последнего администратора в системе.");
+            }
+        }
+
+        boolean removed = user.getUserAuthInfo().getRoles().removeIf(r -> r.getRole().equals(normalized));
+        if (removed) {
+            userRepository.save(user);
+            log.info("С пользователя {} снята роль {}", user.getUsername(), normalized);
+        }
+    }
+
+
+    @Transactional
+    public void deleteUserById(UUID id, UUID currentUserId) {
         if (!userRepository.existsById(id)) {
             throw new ResourceNotFoundException("Пользователь не найден");
         }
+        if (currentUserId != null && currentUserId.equals(id)) {
+            throw new IllegalStateException(
+                    "Нельзя удалить собственный аккаунт. Обратитесь к другому администратору.");
+        }
+        User user = getUserById(id);
+        if (isUserAdmin(user) && countAdmins() <= 1) {
+            throw new IllegalStateException(
+                    "Нельзя удалить последнего администратора в системе.");
+        }
         userRepository.deleteById(id);
+        log.info("Удалён пользователь {} ({})", user.getUsername(), id);
+    }
+
+
+    @Deprecated
+    @Transactional
+    public void removeRole(UUID userId, String roleName) {
+        removeRole(userId, roleName, null);
+    }
+
+
+    @Deprecated
+    @Transactional
+    public void deleteUserById(UUID id) {
+        deleteUserById(id, null);
     }
 
     @Transactional
     public void assignRole(UUID userId, String roleName) {
+        String normalized = normalizeRoleName(roleName);
         User user = getUserById(userId);
-        Role role = roleRepository.findByRole(roleName)
-                .orElseThrow(() -> new ResourceNotFoundException("Роль " + roleName + " не найдена"));
+        Role role = roleRepository.findByRole(normalized)
+                .orElseThrow(() -> new ResourceNotFoundException("Роль " + normalized + " не найдена"));
 
+        boolean already = user.getUserAuthInfo().getRoles().stream()
+                .anyMatch(r -> r.getRole().equalsIgnoreCase(normalized));
+        if (already) {
+            log.info("Пользователь {} уже имеет роль {}", user.getUsername(), normalized);
+            return;
+        }
 
         user.getUserAuthInfo().getRoles().add(role);
         userRepository.save(user);
-        log.info("Пользователю {} выдана роль {}", user.getUsername(), roleName);
+        log.info("Пользователю {} выдана роль {}", user.getUsername(), normalized);
     }
 
-    public Collection<User> getAllUsers() {
-        return userRepository.findAll();
+    public Collection<UserDto> getAllUsers() {
+        List<UserDto> usersDTO = new ArrayList<>();
+        List<User> users = userRepository.findAll();
+        for (User user : users) {
+            usersDTO.add(UserDto.builder()
+                    .id(user.getId())
+                    .birthDate(user.getBirthDate())
+                    .firstName(user.getFirstName())
+                    .email(user.getUserAuthInfo().getEmail())
+                    .lastName(user.getLastName())
+                    .phoneNumber(user.getUserAuthInfo().getPhoneNumber())
+                    .username(user.getUsername())
+                    .password(user.getUserAuthInfo().getPassword())
+                    .build());
+        }
+        return usersDTO;
+    }
+
+    public AdminUserDto getUserForAdmin(UUID id) {
+        User user = getUserById(id);
+        return AdminUserDto.builder()
+                .id(user.getId())
+                .username(user.getUsername())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .birthDate(user.getBirthDate())
+                .email(user.getUserAuthInfo().getEmail())
+                .phoneNumber(user.getUserAuthInfo().getPhoneNumber())
+                .roles(user.getUserAuthInfo().getRoles())
+                .active(true) // Можно добавить поле active в User если нужно
+                .build();
+    }
+
+    @Transactional
+    public AdminUserDto updateUserForAdmin(UUID id, AddInfoUserDTO userDTO) {
+        User user = getUserById(id);
+        
+        Optional.ofNullable(userDTO.getUsername()).filter(StringUtils::hasText).ifPresent(user::setUsername);
+        Optional.ofNullable(userDTO.getBirthDate()).ifPresent(user::setBirthDate);
+        Optional.ofNullable(userDTO.getFirstName()).filter(StringUtils::hasText).ifPresent(user::setFirstName);
+        Optional.ofNullable(userDTO.getLastName()).filter(StringUtils::hasText).ifPresent(user::setLastName);
+        
+        userRepository.save(user);
+        
+        return AdminUserDto.builder()
+                .id(user.getId())
+                .username(user.getUsername())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .birthDate(user.getBirthDate())
+                .email(user.getUserAuthInfo().getEmail())
+                .phoneNumber(user.getUserAuthInfo().getPhoneNumber())
+                .roles(user.getUserAuthInfo().getRoles())
+                .active(true)
+                .build();
     }
 
     public User getUserByEmail(String email) {
-        Optional<UserAuthInfo> userAuth = Optional.ofNullable(userAuthInfoRepository.findByEmail(email).
-                orElseThrow(() ->
-                        new ResourceNotFoundException("User with email %s not found".formatted(email))));
-        return userAuth.get().getUser();
+        UserAuthInfo userAuth = userAuthInfoRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("User with email %s not found".formatted(email)));
+        return userAuth.getUser();
     }
 
     public User getUserByUsername(String username) {
-        Optional<User> user = Optional.ofNullable(userRepository.findByUsername(username).
-                orElseThrow(() ->
-                        new ResourceNotFoundException("User with username: %s not found".formatted(username))));
-        return user.get();
+        return userRepository.findByUsername(username)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("User with username: %s not found".formatted(username)));
     }
 
     public User getUserByPhoneNumber(String phoneNumber) {
-        Optional<UserAuthInfo> userAuth = Optional.ofNullable(userAuthInfoRepository.findByPhoneNumber(phoneNumber).
-                orElseThrow(() ->
-                        new ResourceNotFoundException("User with phone: %s not found".formatted(phoneNumber))));
-        return userAuth.get().getUser();
+        UserAuthInfo userAuth = userAuthInfoRepository.findByPhoneNumber(phoneNumber)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("User with phone: %s not found".formatted(phoneNumber)));
+        return userAuth.getUser();
     }
 
     public HttpStatus createUser(User user) {
@@ -156,6 +280,7 @@ public class UserService {
 
             userRepository.save(user);
             return UserDto.builder()
+                    .id(user.getId())
                     .birthDate(user.getBirthDate())
                     .firstName(user.getFirstName())
                     .lastName(user.getLastName())

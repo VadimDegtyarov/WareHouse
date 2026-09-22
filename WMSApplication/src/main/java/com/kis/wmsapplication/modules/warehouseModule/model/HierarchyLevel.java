@@ -9,9 +9,9 @@ import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 @Entity
 @Table(name = "warehouse_hierarchy_level",
@@ -23,8 +23,8 @@ import java.util.UUID;
 public class HierarchyLevel {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "warehouse_id", nullable = false)
@@ -50,6 +50,16 @@ public class HierarchyLevel {
     private String name;
 
     private BigDecimal capacity; // Вместимость конкретной ячейки
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null) {
+            createdAt = Instant.now();
+        }
+    }
 
     // Вспомогательный метод для добавления доченрних елементов
     public void addChild(HierarchyLevel child) {

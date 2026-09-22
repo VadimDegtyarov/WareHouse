@@ -109,4 +109,27 @@ public class UserAuthInfoService implements UserDetailsService {
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
     }
+
+
+    public java.util.List<String> grantRoleToCurrentUser(String roleName) {
+        UserAuthInfo user = getCurrentUser();
+        String tmp = roleName == null ? "" : roleName.trim().toUpperCase();
+        if (!tmp.startsWith("ROLE_")) {
+            tmp = "ROLE_" + tmp;
+        }
+        final String normalized = tmp;
+        Role role = rolesRepository.findByRole(normalized)
+                .orElseThrow(() -> new ResourceNotFoundException("Роль не найдена: " + normalized));
+        boolean already = user.getRoles().stream().anyMatch(r -> r.getRole().equalsIgnoreCase(normalized));
+        if (!already) {
+            user.addRole(role);
+            userAuthRepository.save(user);
+            logger.info("Пользователю {} назначена роль {}", user.getEmail(), normalized);
+        } else {
+            logger.info("Пользователь {} уже имеет роль {}", user.getEmail(), normalized);
+        }
+        return user.getRoles().stream()
+                .map(Role::getRole)
+                .collect(Collectors.toList());
+    }
 }

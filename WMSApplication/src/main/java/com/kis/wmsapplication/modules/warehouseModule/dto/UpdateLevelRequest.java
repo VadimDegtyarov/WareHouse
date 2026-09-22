@@ -4,20 +4,9 @@ import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
 
 /**
- * DTO для создания уровня иерархии склада (зона, ряд, стеллаж, полка, ячейка).
+ * DTO для обновления уровня иерархии склада.
  */
-public record CreateLevelRequest(
-        @NotNull(message = "ID склада обязателен")
-        @Positive(message = "ID склада должен быть положительным")
-        Long warehouseId,
-
-        @Positive(message = "ID родительского элемента должен быть положительным")
-        Long parentId, // Может быть null (если создаем корневую Зону)
-
-        @NotBlank(message = "Тип уровня обязателен (ZONE, ROW, RACK, SHELF, BIN)")
-        @Size(max = 50, message = "Тип уровня не может быть длиннее 50 символов")
-        String categoryName, // "ZONE", "ROW", "RACK", "SHELF", "BIN"
-
+public record UpdateLevelRequest(
         @NotBlank(message = "Код локации обязателен")
         @Size(min = 1, max = 100, message = "Код должен быть от 1 до 100 символов")
         @Pattern(regexp = "^[A-Za-z0-9\\-_]+$", message = "Код может содержать только буквы, цифры, дефис и подчеркивание")

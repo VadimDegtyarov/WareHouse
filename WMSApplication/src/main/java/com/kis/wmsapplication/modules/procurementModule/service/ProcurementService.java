@@ -35,7 +35,7 @@ public class ProcurementService {
     private final InventoryService inventoryService;
 
     @Transactional
-    public UUID createOrder(CreateOrderRequest request) {
+    public Long createOrder(CreateOrderRequest request) {
         Supplier supplier = supplierRepository.findById(request.supplierId())
                 .orElseThrow(() -> new ResourceNotFoundException("Поставщик не найден"));
 
@@ -47,6 +47,9 @@ public class ProcurementService {
                 .expectedArrival(Instant.now().plus(supplier.getAvgLeadTimeDays(), ChronoUnit.DAYS))
                 .build();
 
+        // Сохраняем order сначала, чтобы получить ID
+        order = orderRepository.save(order);
+
         for (var itemDto : request.items()) {
             Product product = productRepository.findById(itemDto.productId())
                     .orElseThrow(() -> new ResourceNotFoundException("Товар не найден"));
@@ -54,18 +57,21 @@ public class ProcurementService {
             BigDecimal price = itemDto.purchasePrice() != null
                     ? itemDto.purchasePrice()
                     : product.getPrice();
+            
             IncomingOrderItem item = IncomingOrderItem.builder()
+                    .order(order) // Явно устанавливаем order
                     .product(product)
-                    .order(order)
                     .quantity(itemDto.quantity())
                     .purchasePrice(itemDto.purchasePrice() != null ? itemDto.purchasePrice() : product.getPrice())
-
                     .build();
 
+            // Добавляем item в коллекцию
             order.addItem(item);
         }
 
-        return orderRepository.save(order).getId();
+        // Сохраняем order снова, чтобы сохранить items через cascade
+        order = orderRepository.save(order);
+        return order.getId();
     }
 
     /**
@@ -74,7 +80,7 @@ public class ProcurementService {
      * @param targetLocationId В какую зону/ячейку принимаем товар (обычно Зона Приемки)
      */
     @Transactional
-    public void receiveOrder(UUID orderId, UUID targetLocationId) {
+    public void receiveOrder(Long orderId, Long targetLocationId) {
         IncomingOrder order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Заказ не найден"));
 

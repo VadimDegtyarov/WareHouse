@@ -22,8 +22,8 @@ import java.util.UUID;
 public class IncomingOrder {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "supplier_id", nullable = false)
@@ -48,6 +48,10 @@ public class IncomingOrder {
 
     // Вспомогательный метод
     public void addItem(IncomingOrderItem item) {
+        if(items==null)
+        {
+            items = new ArrayList<>();
+        }
         items.add(item);
         item.setOrder(this);
     }

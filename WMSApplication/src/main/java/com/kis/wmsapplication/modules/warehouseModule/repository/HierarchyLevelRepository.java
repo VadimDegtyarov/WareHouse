@@ -9,8 +9,10 @@ import java.util.List;
 import java.util.UUID;
 
 @Repository
-public interface HierarchyLevelRepository extends JpaRepository<HierarchyLevel, UUID> {
+public interface HierarchyLevelRepository extends JpaRepository<HierarchyLevel, Long> {
 
 
-    List<HierarchyLevel> findByWarehouseIdAndParentIsNull(UUID warehouseId);
+    List<HierarchyLevel> findByWarehouseIdAndParentIsNull(Long warehouseId);
+    
+    List<HierarchyLevel> findByWarehouseId(Long warehouseId);
 }

@@ -78,7 +78,7 @@ public class SecurityConfiguration  {
                 );
         http.logout(logout -> logout
                 .logoutUrl("/logout")
-                .addLogoutHandler(new CookieClearingLogoutHandler("__HOST-auth-token"))
+                .addLogoutHandler(new CookieClearingLogoutHandler("__JWT-auth-token"))
                 .addLogoutHandler((request, response, authentication) -> {
                     logger.info("authentication class:{}", authentication);
                     if (authentication != null && authentication.getPrincipal() instanceof TokenUserAuthInfo token) {

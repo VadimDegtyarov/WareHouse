@@ -50,5 +50,23 @@ public class ProductLocationStock {
     @PreUpdate
     public void updateTimestamp() {
         this.lastUpdated = Instant.now();
+        // Инициализируем embedded ID из location и product, если он null
+        if (this.id == null && this.location != null && this.product != null) {
+            this.id = new ProductLocationStockId(this.location.getId(), this.product.getId());
+        }
+    }
+    
+    @PostLoad
+    public void syncId() {
+        // Синхронизируем ID из location и product после загрузки
+        if (this.location != null && this.product != null) {
+            if (this.id == null) {
+                this.id = new ProductLocationStockId(this.location.getId(), this.product.getId());
+            } else {
+                // Обновляем ID, если изменились location или product
+                this.id.setLocationId(this.location.getId());
+                this.id.setProductId(this.product.getId());
+            }
+        }
     }
 }

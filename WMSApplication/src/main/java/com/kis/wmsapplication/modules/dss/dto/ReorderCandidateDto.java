@@ -6,9 +6,9 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 public record ReorderCandidateDto(
-        UUID productId,
+        Long productId,
         String sku,
-        UUID supplierId,
+        Long supplierId,
         BigDecimal currentAvailable, // (Физический остаток - Резерв)
         BigDecimal reorderPoint,
         BigDecimal eoq,

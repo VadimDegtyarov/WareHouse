@@ -9,7 +9,7 @@ import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
 import java.math.BigDecimal;
-import java.util.UUID;
+import java.time.Instant;
 
 @Entity
 @Table(name = "incoming_order_item")
@@ -20,8 +20,8 @@ import java.util.UUID;
 public class IncomingOrderItem {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id", nullable = false)
@@ -36,4 +36,14 @@ public class IncomingOrderItem {
 
     @Column(name = "purchase_price")
     private BigDecimal purchasePrice; // Цена закупки (может отличаться от каталожной)
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null) {
+            createdAt = Instant.now();
+        }
+    }
 }
